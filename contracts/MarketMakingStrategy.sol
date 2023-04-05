@@ -70,12 +70,16 @@ contract MarketMakingStrategy is Ownable {
         _;
     }
 
-    string token1;
+    string token1; // TODO: convert all string types to bytes
     string token2;
     string nativeToken;
     address erc20ContractAddress1;
     address erc20ContractAddress2;
     bool locked = false;
+
+    // This is only used to check if the token is native or ERC20
+    // Either pair can be native
+    address constant noErc = 0x0000000000000000000000000000000000000000;
 
     /// @notice Constructor function
     /// @param _nativeToken we are passing native token symbol so we can deploy contract instances on different EVM chains and accept them as deposits
@@ -94,9 +98,6 @@ contract MarketMakingStrategy is Ownable {
 
         ERC20Interface erc20Contract;
 
-        // This is only used to check if the token is native or ERC20
-        // Either pair can be native
-        address noErc = 0x0000000000000000000000000000000000000000;
         if (_erc20ContractAddress1 == noErc) {
             token1 = nativeToken;
         } else {
