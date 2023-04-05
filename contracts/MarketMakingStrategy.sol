@@ -143,9 +143,14 @@ contract MarketMakingStrategy is Ownable {
             "Wrong token sent."
         );
 
-        ERC20Interface erc20Contract = ERC20Interface(
-            address(erc20ContractAddress2)
-        );
+        ERC20Interface erc20Contract;
+        erc20Contract = ERC20Interface(address(erc20ContractAddress1));
+        if (
+            keccak256(bytes(erc20Contract.symbol())) !=
+            keccak256(bytes(tokenSymbol))
+        ) {
+            erc20Contract = ERC20Interface(address(erc20ContractAddress2));
+        }
 
         if (keccak256(bytes(tokenSymbol)) != keccak256(bytes(nativeToken))) {
             bool success = erc20Contract.transferFrom(
@@ -164,12 +169,6 @@ contract MarketMakingStrategy is Ownable {
 
     // only accept eth if it's part of the pair
     receive() external payable ifNativeTokenAccepted {
-        if (keccak256(bytes(token1)) == keccak256(bytes(nativeToken))) {
-            depositPool[token1] += msg.value;
-        } else if (keccak256(bytes(token2)) == keccak256(bytes(nativeToken))) {
-            depositPool[token2] += msg.value;
-        }
-
         updateParticipantAndPool(nativeToken, msg.value);
     }
 
@@ -178,8 +177,10 @@ contract MarketMakingStrategy is Ownable {
         uint amount
     ) internal {
         Participant memory participant = participants[msg.sender];
+
         require(
-            keccak256(bytes(participant.token)) !=
+            (bytes(participant.token)).length == 0 ||
+                keccak256(bytes(participant.token)) ==
                 keccak256(bytes(tokenSymbol)),
             "Participant already has a token locked"
         );
@@ -187,6 +188,7 @@ contract MarketMakingStrategy is Ownable {
         participant.amount += amount;
         participant.token = tokenSymbol;
 
+        participants[msg.sender] = participant;
         depositPool[tokenSymbol] += amount;
 
         emit Deposit(amount, block.timestamp, msg.sender);
