@@ -4,7 +4,7 @@ pragma solidity ^0.8.9;
 // Uncomment this line to use console.log
 import "hardhat/console.sol";
 
-import {ERC20Interface} from "./ERC20Interface.sol";
+import {ERC20Interface} from "./interface/ERC20Interface.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract MarketMakingStrategy is Ownable {
