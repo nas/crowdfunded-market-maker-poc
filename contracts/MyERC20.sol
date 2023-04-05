@@ -6,7 +6,10 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 
 contract MyToken is ERC20 {
-    constructor() ERC20("MyToken", "MTK") {}
+    constructor(
+        string memory tokenName,
+        string memory tokenSymbol
+    ) ERC20(tokenName, tokenSymbol) {}
 
     function mint(address to, uint256 amount) public {
         _mint(to, amount);

@@ -1,10 +1,8 @@
+
 import { ethers } from "hardhat";
 import { MarketMakingStrategy__factory, MyToken__factory } from "../typechain-types";
 
 async function main() {
-  const currentTimestampInSeconds = Math.round(Date.now() / 1000);
-  const ONE_YEAR_IN_SECS = 365 * 24 * 60 * 60;
-  const unlockTime = currentTimestampInSeconds + ONE_YEAR_IN_SECS;
   const NO_ERC = '0x0000000000000000000000000000000000000000'
 
   const signers = await ethers.getSigners();
@@ -12,7 +10,7 @@ async function main() {
   console.log({signerAddress})
 
   const MyToken = await ethers.getContractFactory("MyToken");
-  const myToken = await MyToken.deploy();
+  const myToken = await MyToken.deploy("MyToken", "MTK");
 
   await myToken.deployed();
 
@@ -69,10 +67,10 @@ async function main() {
   // const token1Amount = await mmStrategyContract.deposits(token1)
   // console.log(token1Amount)
 
-  // console.log("Owner: ", await mmStrategyContract.owner())
+  console.log("Owner: ", await mmStrategyContract.owner())
 
-  // await mmStrategyContract.transferOwnership(signers[1].address)
-  // // console.log("Owner: ", await mmStrategyContract.owner())
+  await mmStrategyContract.transferOwnership(signers[1].address)
+  console.log("Owner: ", await mmStrategyContract.owner())
 
   // await mmStrategyContract.address
 }
