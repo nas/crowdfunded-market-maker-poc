@@ -1,4 +1,4 @@
-# Sample Hardhat Project
+# Crowdfunded Market Maker - PoC
 
 A simple PoC for Crowdfunded Market Maker. Uses [Gridex Protocol](https://gdx.org) under the hood for MM.
 
