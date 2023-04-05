@@ -26,7 +26,7 @@ async function main() {
     throw new Error("Missing env: Private Key");
 
   const provider = new ethers.providers.EtherscanProvider(
-    "goerli",
+    process.env.CHAIN_NAME,
     process.env.ETHERSCAN_API_KEY
   );
 
