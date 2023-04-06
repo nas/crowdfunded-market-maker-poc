@@ -6,6 +6,8 @@ import "hardhat/console.sol";
 
 import {ERC20Interface} from "./interfaces/ERC20Interface.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import {MakerOrder} from "./MakerOrder.sol";
+import "./interfaces/IMakerOrderManager.sol";
 
 contract MarketMakingStrategy is Ownable {
     enum StateName {
@@ -17,7 +19,7 @@ contract MarketMakingStrategy is Ownable {
 
     // This represents a single participant in a strategy
     struct Participant {
-        uint amount; // number of tokens, e.g. 100
+        uint128 amount; // number of tokens, e.g. 100
         string token; // token symbol, e.g. USDC
     }
 
@@ -25,11 +27,28 @@ contract MarketMakingStrategy is Ownable {
     // stores a `Participant` struct for each possible address.
     mapping(address => Participant) public participants;
 
-    mapping(string => uint) public depositPool;
+    mapping(string => uint128) public depositPool;
     // {
     //  usdc: 1200,
     //  usdt: 700
     // }
+
+    // stores the orderId returned by gridex
+    uint gridexOrderIdA;
+    uint gridexOrderIdB;
+    string token1; // TODO: convert all string types to bytes
+    string token2;
+    string nativeToken;
+    address erc20ContractAddress1;
+    address erc20ContractAddress2;
+    bool locked = false;
+
+    /// @notice MakerOrder Contract
+    MakerOrder public makerOrder;
+
+    // This is only used to check if the token is native or ERC20
+    // Either pair can be native
+    address constant noErc = 0x0000000000000000000000000000000000000000;
 
     event Claim(uint amount, uint when, address from);
     event Deposit(uint amount, uint when, address from);
@@ -70,17 +89,6 @@ contract MarketMakingStrategy is Ownable {
         _;
     }
 
-    string token1; // TODO: convert all string types to bytes
-    string token2;
-    string nativeToken;
-    address erc20ContractAddress1;
-    address erc20ContractAddress2;
-    bool locked = false;
-
-    // This is only used to check if the token is native or ERC20
-    // Either pair can be native
-    address constant noErc = 0x0000000000000000000000000000000000000000;
-
     /// @notice Constructor function
     /// @param _nativeToken we are passing native token symbol so we can deploy contract instances on different EVM chains and accept them as deposits
     /// @param _erc20ContractAddress1 contract address of the first token of the pair used in Strategy
@@ -110,6 +118,17 @@ contract MarketMakingStrategy is Ownable {
 
         depositPool[token1] = 0;
         depositPool[token2] = 0;
+
+        //    0x36E56CC52d7A0Af506D1656765510cd930fF1595
+        IMakerOrderManager makerOrderManager = IMakerOrderManager(
+            0xDf1270A20463c991BD0A7bb462584eDA80fd41BE
+        );
+
+        makerOrder = new MakerOrder(
+            makerOrderManager,
+            erc20ContractAddress1,
+            erc20ContractAddress2
+        );
     }
 
     function isAddressERC(address addr) internal pure returns (bool) {
@@ -166,7 +185,7 @@ contract MarketMakingStrategy is Ownable {
 
     // can only be deposited if strategy hasn't started yet
     function deposit(
-        uint amount,
+        uint128 amount,
         string calldata tokenSymbol
     ) external payable onlyPending returns (bool) {
         require(
@@ -201,12 +220,12 @@ contract MarketMakingStrategy is Ownable {
 
     // only accept eth if it's part of the pair
     receive() external payable ifNativeTokenAccepted {
-        updateParticipantAndPool(nativeToken, msg.value);
+        updateParticipantAndPool(nativeToken, uint128(msg.value));
     }
 
     function updateParticipantAndPool(
         string memory tokenSymbol,
-        uint amount
+        uint128 amount
     ) internal {
         Participant memory participant = participants[msg.sender];
 
@@ -233,17 +252,33 @@ contract MarketMakingStrategy is Ownable {
     // can only be started if the strategy is in pending state
     // can only be kicked off by the owner of the Strategy
     function start() external onlyOwner onlyPending returns (string memory) {
-        state = StateName.RUNNING;
+        // Check: I think this should this be for the whole deposit
         // start using GRIDEX now
+
+        gridexOrderIdA = makerOrder.placeMakerOrderForAddressA(
+            depositPool[token1]
+        );
+        gridexOrderIdB = makerOrder.placeMakerOrderForAddressB(
+            depositPool[token2]
+        );
+
+        state = StateName.RUNNING;
         return "strategy started";
     }
 
     // can only be stopped if the strategy is in running state
     // can only be stopped by the owner of the strategy unless the owner transfers the ownership
     function stop() external onlyOwner onlyRunning returns (string memory) {
-        state = StateName.EXPIRED;
         // get the money out of gridex now
+        (uint amt1, uint amt2) = makerOrder.settleAndCollect(gridexOrderIdA);
+        // store this in the returned amount somewhere
+
+        (amt1, amt2) = makerOrder.settleAndCollect(gridexOrderIdB);
         // now money can be taken out by all depositors
+
+        // should this just be stop and collect like so
+
+        state = StateName.EXPIRED;
         return "strategy stopped";
     }
 
