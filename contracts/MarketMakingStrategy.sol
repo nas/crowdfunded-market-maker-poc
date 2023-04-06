@@ -96,39 +96,70 @@ contract MarketMakingStrategy is Ownable {
         erc20ContractAddress1 = address(_erc20ContractAddress1);
         erc20ContractAddress2 = address(_erc20ContractAddress2);
 
-        ERC20Interface erc20Contract;
-
-        if (_erc20ContractAddress1 == noErc) {
-            token1 = nativeToken;
+        if (isAddressERC(erc20ContractAddress1)) {
+            token1 = contractA().symbol();
         } else {
-            erc20Contract = ERC20Interface(erc20ContractAddress1);
-            token1 = erc20Contract.symbol();
+            token1 = nativeToken;
         }
 
-        if (_erc20ContractAddress2 == noErc) {
-            token2 = nativeToken;
+        if (isAddressERC(erc20ContractAddress2)) {
+            token2 = contractB().symbol();
         } else {
-            erc20Contract = ERC20Interface(erc20ContractAddress2);
-            token2 = erc20Contract.symbol();
+            token2 = nativeToken;
         }
 
         depositPool[token1] = 0;
         depositPool[token2] = 0;
     }
 
+    function isAddressERC(address addr) internal pure returns (bool) {
+        return (addr != noErc);
+    }
+
+    function contractA() internal view returns (ERC20Interface) {
+        return ERC20Interface(erc20ContractAddress1);
+    }
+
+    function contractB() internal view returns (ERC20Interface) {
+        return ERC20Interface(erc20ContractAddress2);
+    }
+
     function claim() external onlyExpired returns (bool) {
         require(!locked, "Reentrant call detected!");
         locked = true;
+
         Participant storage claimant = participants[msg.sender];
         uint amount = claimant.amount;
+        // string memory token = claimant.token;
 
-        // for ETH
-        // address payable participant = payable(address(msg.sender));
-        // bool success = true;
-        (bool success, ) = msg.sender.call{value: amount}("");
+        require(amount > 0, "Claimant amount is less than or equal to zero");
+        require(
+            depositPool[claimant.token] > 0,
+            "Deposit Pool is less than or equal to zero"
+        );
+        // TODO: Fix this hack
+        // uint originalDeposit = depositPool[claimant.token];
+        // uint profitLoss = (amount / depositPool[claimant.token]) *
+        //     (originalDeposit - depositPool[claimant.token]);
 
-        // some logic to convert their tokens and send them
+        uint amountOwed = depositPool[claimant.token]; //amount + profitLoss;
+        bool success;
+
+        if (keccak256(bytes(claimant.token)) == keccak256(bytes(nativeToken))) {
+            (success, ) = payable(msg.sender).call{value: amountOwed}("");
+        } else {
+            if (
+                keccak256(bytes(claimant.token)) ==
+                keccak256(bytes(contractA().symbol()))
+            ) {
+                success = contractA().transfer(msg.sender, amountOwed);
+            } else {
+                success = contractB().transfer(msg.sender, amountOwed);
+            }
+        }
+        // update totals  before unlocking
         locked = false;
+
         emit Claim(amount, block.timestamp, msg.sender);
         return (success);
     }
@@ -145,12 +176,12 @@ contract MarketMakingStrategy is Ownable {
         );
 
         ERC20Interface erc20Contract;
-        erc20Contract = ERC20Interface(address(erc20ContractAddress1));
+        erc20Contract = contractA();
         if (
             keccak256(bytes(erc20Contract.symbol())) !=
             keccak256(bytes(tokenSymbol))
         ) {
-            erc20Contract = ERC20Interface(address(erc20ContractAddress2));
+            erc20Contract = contractB();
         }
 
         if (keccak256(bytes(tokenSymbol)) != keccak256(bytes(nativeToken))) {
