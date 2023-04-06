@@ -68,13 +68,14 @@ console.log(await mmMyTokenContract.connect(signers[0]).allowance(signers[0].add
   console.log(await mmStrategyContract.depositPool(mmMyTokenContract.symbol()))
   console.log(await mmStrategyContract.depositPool(mmMyTokenContract2.symbol()))
 
-  const start = await mmStrategyContract.start() // should successfully start the strategy
+  // commenting these out for now, since from here we connect with gridex as is not being handled properly in this script
+  // const start = await mmStrategyContract.start() // should successfully start the strategy
   // console.log(start)
   
-  const stop = await mmStrategyContract.stop() // should successfully stop the strategy
+  // const stop = await mmStrategyContract.stop() // should successfully stop the strategy
   // console.log(stop)
 
-  const claim = await mmStrategyContract.claim()
+  // const claim = await mmStrategyContract.claim()
   // console.log(claim)
   
   console.log("Owner: ", await mmStrategyContract.owner())
